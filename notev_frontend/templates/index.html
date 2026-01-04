@@ -22,21 +22,25 @@
                 <div class="sidebar-section">
                     <h2>Events</h2>
                     <button id="new-workspace-btn" class="btn btn-primary">+ New Event</button>
-                    <div id="workspaces-list" class="workspaces-list"></div>
+                    <div id="current-workspace-container" class="current-workspace-container"></div>
+                    <button id="toggle-events-btn" class="btn-toggle" title="Show/Hide Other Events">▼ Other Events</button>
+                    <div id="events-content" class="collapsible-content">
+                        <div id="workspaces-list" class="workspaces-list"></div>
+                    </div>
                 </div>
 
                 <div class="sidebar-section">
                     <h2>Documents</h2>
 
-                    <h3>Global Documents</h3>
-                    <input type="file" id="global-doc-upload" accept=".txt,.docx,.pptx,.pdf" style="display: none;">
-                    <button id="upload-global-doc-btn" class="btn btn-secondary">+ Upload Global Doc</button>
-                    <div id="global-docs-list" class="docs-list"></div>
-
                     <h3>Event Documents</h3>
                     <input type="file" id="workspace-doc-upload" accept=".txt,.docx,.pptx,.pdf" style="display: none;">
                     <button id="upload-workspace-doc-btn" class="btn btn-secondary" disabled>+ Upload to Event</button>
                     <div id="workspace-docs-list" class="docs-list"></div>
+
+                    <h3>Global Documents</h3>
+                    <input type="file" id="global-doc-upload" accept=".txt,.docx,.pptx,.pdf" style="display: none;">
+                    <button id="upload-global-doc-btn" class="btn btn-secondary">+ Upload Global Doc</button>
+                    <div id="global-docs-list" class="docs-list"></div>
                 </div>
             </aside>
 
