@@ -46,6 +46,17 @@ function initializeApp() {
 // ============================================================================
 
 function setupEventListeners() {
+    // Toggle Events visibility
+    document.getElementById('toggle-events-btn').addEventListener('click', () => {
+        const toggleBtn = document.getElementById('toggle-events-btn');
+        const eventsContent = document.getElementById('events-content');
+
+        const isCollapsed = toggleBtn.classList.toggle('collapsed');
+        eventsContent.classList.toggle('collapsed');
+
+        toggleBtn.textContent = isCollapsed ? '▶ Other Events' : '▼ Other Events';
+    });
+
     // Workspace creation
     document.getElementById('new-workspace-btn').addEventListener('click', () => {
         document.getElementById('new-workspace-modal').style.display = 'block';
@@ -108,12 +119,19 @@ async function loadWorkspaces() {
         const response = await fetch(`${API_BASE}/workspaces`);
         const data = await response.json();
 
+        const currentContainer = document.getElementById('current-workspace-container');
         const workspacesList = document.getElementById('workspaces-list');
+
+        currentContainer.innerHTML = '';
         workspacesList.innerHTML = '';
 
         data.workspaces.forEach(workspace => {
             const item = createWorkspaceItem(workspace);
-            workspacesList.appendChild(item);
+            if (currentWorkspace && workspace.id === currentWorkspace.id) {
+                currentContainer.appendChild(item);
+            } else {
+                workspacesList.appendChild(item);
+            }
         });
     } catch (error) {
         console.error('Error loading workspaces:', error);
@@ -202,10 +220,8 @@ async function selectWorkspace(workspaceId) {
 
         currentWorkspace = data.workspace;
 
-        // Update UI
-        document.querySelectorAll('.workspace-item').forEach(item => {
-            item.classList.toggle('active', item.dataset.workspaceId === workspaceId);
-        });
+        // Reload workspaces to move current to top container
+        await loadWorkspaces();
 
         document.getElementById('no-workspace-message').style.display = 'none';
         document.getElementById('workspace-info').style.display = 'block';
