@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notev - Operations Center AI Assistant</title>
+    <link rel="icon" type="image/svg+xml" href="/static/images/favicon.svg">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>Notev</h1>
+            <p class="subtitle">AI-Powered Operations Decision Support</p>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="sidebar-section">
+                    <h2>Events</h2>
+                    <button id="new-workspace-btn" class="btn btn-primary">+ New Event</button>
+                    <div id="workspaces-list" class="workspaces-list"></div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h2>Documents</h2>
+
+                    <h3>Global Documents</h3>
+                    <input type="file" id="global-doc-upload" accept=".txt,.docx,.pptx,.pdf" style="display: none;">
+                    <button id="upload-global-doc-btn" class="btn btn-secondary">+ Upload Global Doc</button>
+                    <div id="global-docs-list" class="docs-list"></div>
+
+                    <h3>Event Documents</h3>
+                    <input type="file" id="workspace-doc-upload" accept=".txt,.docx,.pptx,.pdf" style="display: none;">
+                    <button id="upload-workspace-doc-btn" class="btn btn-secondary" disabled>+ Upload to Event</button>
+                    <div id="workspace-docs-list" class="docs-list"></div>
+                </div>
+            </aside>
+
+            <!-- Chat Area -->
+            <main class="chat-area">
+                <div id="no-workspace-message" class="no-workspace-message">
+                    <p>Please select or create an event to start</p>
+                </div>
+
+                <div id="workspace-info" class="workspace-info" style="display: none;">
+                    <h2 id="workspace-name"></h2>
+                    <p id="workspace-description"></p>
+                    <button id="clear-conversation-btn" class="btn btn-warning">Clear Conversation</button>
+                </div>
+
+                <div id="chat-container" class="chat-container" style="display: none;">
+                    <div id="messages" class="messages"></div>
+
+                    <div class="input-area">
+                        <textarea id="message-input" placeholder="Ask a question about the operational scenario..." rows="3"></textarea>
+                        <button id="send-btn" class="btn btn-primary">Send</button>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="new-workspace-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Create New Event</h2>
+            <form id="new-workspace-form">
+                <div class="form-group">
+                    <label for="workspace-name-input">Event Name:</label>
+                    <input type="text" id="workspace-name-input" required>
+                </div>
+                <div class="form-group">
+                    <label for="workspace-desc-input">Description:</label>
+                    <textarea id="workspace-desc-input" rows="3"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Create</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="document-preview-modal" class="modal">
+        <div class="modal-content modal-large">
+            <span class="close" id="close-preview">&times;</span>
+            <h2 id="preview-doc-name"></h2>
+            <div id="preview-doc-info" class="preview-info"></div>
+            <div id="preview-doc-content" class="preview-content"></div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

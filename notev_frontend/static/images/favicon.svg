@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Background circle -->
+  <circle cx="50" cy="50" r="48" fill="#3498db" stroke="#2980b9" stroke-width="2"/>
+
+  <!-- Notepad/Document icon -->
+  <rect x="30" y="25" width="40" height="50" rx="2" fill="#ecf0f1" stroke="#2c3e50" stroke-width="1.5"/>
+
+  <!-- Lines on notepad -->
+  <line x1="35" y1="35" x2="65" y2="35" stroke="#7f8c8d" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="35" y1="42" x2="65" y2="42" stroke="#7f8c8d" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="35" y1="49" x2="60" y2="49" stroke="#7f8c8d" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- AI/Brain icon (simplified) -->
+  <circle cx="55" cy="60" r="8" fill="#e74c3c" stroke="#c0392b" stroke-width="1"/>
+  <circle cx="52" cy="58" r="1.5" fill="#ecf0f1"/>
+  <circle cx="58" cy="58" r="1.5" fill="#ecf0f1"/>
+  <path d="M 52 63 Q 55 65 58 63" stroke="#ecf0f1" stroke-width="1" fill="none" stroke-linecap="round"/>
+</svg>
