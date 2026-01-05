@@ -11,8 +11,13 @@
     <div class="container">
         <!-- Header -->
         <header class="header">
-            <h1>Notev</h1>
-            <p class="subtitle">AI-Powered Operations Decision Support</p>
+            <div class="header-content">
+                <div class="header-title">
+                    <h1>Notev</h1>
+                    <p class="subtitle">AI-Powered Operations Decision Support</p>
+                </div>
+                <button id="settings-btn" class="btn btn-settings" title="Settings">Settings</button>
+            </div>
         </header>
 
         <!-- Main Content -->
@@ -94,6 +99,37 @@
             <div id="preview-doc-info" class="preview-info"></div>
             <div id="preview-doc-content" class="preview-content"></div>
         </div>
+    </div>
+
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="close-settings">&times;</span>
+            <h2>Settings</h2>
+            <form id="settings-form">
+                <div class="form-group">
+                    <label for="anthropic-api-key">Anthropic API Key (Required):</label>
+                    <input type="password" id="anthropic-api-key" placeholder="sk-ant-...">
+                    <p class="form-hint">Get your API key from <a href="https://console.anthropic.com/" target="_blank">console.anthropic.com</a></p>
+                    <div id="anthropic-status" class="api-status"></div>
+                </div>
+                <div class="form-group">
+                    <label for="voyage-api-key">Voyage AI API Key (Optional):</label>
+                    <input type="password" id="voyage-api-key" placeholder="pa-...">
+                    <p class="form-hint">Optional. Improves document search. Get from <a href="https://www.voyageai.com/" target="_blank">voyageai.com</a></p>
+                    <div id="voyage-status" class="api-status"></div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="validate-key-btn" class="btn btn-secondary">Validate Key</button>
+                    <button type="submit" class="btn btn-primary">Save Settings</button>
+                    <button type="button" id="clear-keys-btn" class="btn btn-danger">Clear Keys</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Configuration Required Banner -->
+    <div id="config-banner" class="config-banner" style="display: none;">
+        <p>API keys not configured. <button id="config-banner-btn" class="btn-link">Click here to configure</button></p>
     </div>
 
     <script src="/static/js/app.js"></script>

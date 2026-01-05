@@ -2,6 +2,7 @@
 
 const API_BASE = '/api';
 let currentWorkspace = null;
+let isConfigured = false;
 
 // ============================================================================
 // Utility Functions
@@ -35,8 +36,9 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeApp();
 });
 
-function initializeApp() {
+async function initializeApp() {
     setupEventListeners();
+    await checkConfiguration();
     loadWorkspaces();
     loadGlobalDocuments();
 }
@@ -97,15 +99,27 @@ function setupEventListeners() {
         document.getElementById('document-preview-modal').style.display = 'none';
     });
 
+    // Settings modal
+    document.getElementById('settings-btn').addEventListener('click', openSettingsModal);
+    document.getElementById('close-settings').addEventListener('click', closeSettingsModal);
+    document.getElementById('settings-form').addEventListener('submit', handleSaveSettings);
+    document.getElementById('validate-key-btn').addEventListener('click', handleValidateKey);
+    document.getElementById('clear-keys-btn').addEventListener('click', handleClearKeys);
+    document.getElementById('config-banner-btn').addEventListener('click', openSettingsModal);
+
     // Close modal on outside click
     window.addEventListener('click', (e) => {
         const workspaceModal = document.getElementById('new-workspace-modal');
         const previewModal = document.getElementById('document-preview-modal');
+        const settingsModal = document.getElementById('settings-modal');
         if (e.target === workspaceModal) {
             workspaceModal.style.display = 'none';
         }
         if (e.target === previewModal) {
             previewModal.style.display = 'none';
+        }
+        if (e.target === settingsModal) {
+            settingsModal.style.display = 'none';
         }
     });
 }
@@ -693,5 +707,230 @@ async function clearConversation() {
     } catch (error) {
         console.error('Error clearing conversation:', error);
         alert('Failed to clear conversation');
+    }
+}
+
+// ============================================================================
+// Settings Management
+// ============================================================================
+
+async function checkConfiguration() {
+    try {
+        const response = await fetch(`${API_BASE}/settings`);
+        const data = await response.json();
+
+        isConfigured = data.configured;
+
+        const configBanner = document.getElementById('config-banner');
+        if (!isConfigured) {
+            configBanner.style.display = 'block';
+            document.body.classList.add('has-config-banner');
+            // Auto-open settings on first visit if not configured
+            openSettingsModal();
+        } else {
+            configBanner.style.display = 'none';
+            document.body.classList.remove('has-config-banner');
+        }
+
+        return data;
+    } catch (error) {
+        console.error('Error checking configuration:', error);
+        return { configured: false };
+    }
+}
+
+function openSettingsModal() {
+    const modal = document.getElementById('settings-modal');
+    modal.style.display = 'block';
+
+    // Load current settings status
+    loadSettingsStatus();
+}
+
+function closeSettingsModal() {
+    document.getElementById('settings-modal').style.display = 'none';
+    // Clear status messages
+    document.getElementById('anthropic-status').className = 'api-status';
+    document.getElementById('voyage-status').className = 'api-status';
+}
+
+async function loadSettingsStatus() {
+    try {
+        const response = await fetch(`${API_BASE}/settings`);
+        const data = await response.json();
+
+        const anthropicStatus = document.getElementById('anthropic-status');
+        const voyageStatus = document.getElementById('voyage-status');
+
+        if (data.anthropic_configured) {
+            anthropicStatus.textContent = 'API key is configured';
+            anthropicStatus.className = 'api-status configured';
+        } else {
+            anthropicStatus.className = 'api-status';
+        }
+
+        if (data.voyage_configured) {
+            voyageStatus.textContent = 'API key is configured';
+            voyageStatus.className = 'api-status configured';
+        } else {
+            voyageStatus.className = 'api-status';
+        }
+
+    } catch (error) {
+        console.error('Error loading settings status:', error);
+    }
+}
+
+async function handleValidateKey() {
+    const apiKeyInput = document.getElementById('anthropic-api-key');
+    const apiKey = apiKeyInput.value.trim();
+    const statusDiv = document.getElementById('anthropic-status');
+    const validateBtn = document.getElementById('validate-key-btn');
+
+    if (!apiKey) {
+        statusDiv.textContent = 'Please enter an API key to validate';
+        statusDiv.className = 'api-status error';
+        return;
+    }
+
+    validateBtn.disabled = true;
+    validateBtn.textContent = 'Validating...';
+    statusDiv.textContent = 'Validating API key...';
+    statusDiv.className = 'api-status configured';
+
+    try {
+        const response = await fetch(`${API_BASE}/settings/validate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ anthropic_api_key: apiKey })
+        });
+
+        const data = await response.json();
+
+        if (data.valid) {
+            statusDiv.textContent = 'API key is valid!';
+            statusDiv.className = 'api-status success';
+        } else {
+            statusDiv.textContent = data.error || 'Invalid API key';
+            statusDiv.className = 'api-status error';
+        }
+
+    } catch (error) {
+        console.error('Error validating API key:', error);
+        statusDiv.textContent = 'Error validating API key';
+        statusDiv.className = 'api-status error';
+    } finally {
+        validateBtn.disabled = false;
+        validateBtn.textContent = 'Validate Key';
+    }
+}
+
+async function handleSaveSettings(e) {
+    e.preventDefault();
+
+    const anthropicKey = document.getElementById('anthropic-api-key').value.trim();
+    const voyageKey = document.getElementById('voyage-api-key').value.trim();
+    const anthropicStatus = document.getElementById('anthropic-status');
+
+    // Build settings object - only include keys that have values
+    const settings = {};
+    if (anthropicKey) {
+        settings.anthropic_api_key = anthropicKey;
+    }
+    if (voyageKey) {
+        settings.voyage_api_key = voyageKey;
+    }
+
+    // Check if at least anthropic key is being set (if not already configured)
+    if (!anthropicKey && !isConfigured) {
+        anthropicStatus.textContent = 'Anthropic API key is required';
+        anthropicStatus.className = 'api-status error';
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/settings`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(settings)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('Settings saved successfully!');
+            isConfigured = data.configured;
+
+            // Clear input fields
+            document.getElementById('anthropic-api-key').value = '';
+            document.getElementById('voyage-api-key').value = '';
+
+            // Update banner visibility
+            const configBanner = document.getElementById('config-banner');
+            if (isConfigured) {
+                configBanner.style.display = 'none';
+                document.body.classList.remove('has-config-banner');
+            }
+
+            // Close modal and reload settings status
+            closeSettingsModal();
+
+        } else {
+            anthropicStatus.textContent = data.error || 'Failed to save settings';
+            anthropicStatus.className = 'api-status error';
+        }
+
+    } catch (error) {
+        console.error('Error saving settings:', error);
+        anthropicStatus.textContent = 'Error saving settings';
+        anthropicStatus.className = 'api-status error';
+    }
+}
+
+async function handleClearKeys() {
+    if (!confirm('Are you sure you want to clear all API keys?\n\nThis will disable the chat functionality until new keys are configured.')) {
+        return;
+    }
+
+    const anthropicStatus = document.getElementById('anthropic-status');
+
+    try {
+        const response = await fetch(`${API_BASE}/settings`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                anthropic_api_key: '',
+                voyage_api_key: ''
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('API keys cleared successfully.');
+            isConfigured = false;
+
+            // Show config banner
+            const configBanner = document.getElementById('config-banner');
+            configBanner.style.display = 'block';
+            document.body.classList.add('has-config-banner');
+
+            // Reload settings status
+            loadSettingsStatus();
+        } else {
+            anthropicStatus.textContent = data.error || 'Failed to clear keys';
+            anthropicStatus.className = 'api-status error';
+        }
+
+    } catch (error) {
+        console.error('Error clearing keys:', error);
+        anthropicStatus.textContent = 'Error clearing keys';
+        anthropicStatus.className = 'api-status error';
     }
 }
