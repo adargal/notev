@@ -2,6 +2,19 @@
 
 Notev is an AI-powered assistant designed to support Operations Centers in real-time decision-making. It ingests relevant information about specific situations and synthesizes it into clear, actionable guidance, helping operators assess scenarios, consider options, and respond effectively.
 
+## Quick Start (Windows)
+
+**No Python required!** Download the standalone Windows executable:
+
+1. Go to [Releases](https://github.com/adargal/notev/releases)
+2. Download `Notev-Windows.zip` from the latest release
+3. Extract the zip file
+4. Run `Notev.exe`
+5. Your browser will open automatically
+6. Enter your API keys in Settings when prompted
+
+See [DISTRIBUTION_README.txt](DISTRIBUTION_README.txt) for detailed instructions.
+
 ## Features
 
 ### Phase 1 - Assisted Decision Support
@@ -203,13 +216,12 @@ notev/
 ## Future Enhancements (Beyond Phase 1)
 
 - User authentication and role-based access control
-- Real embedding service integration (Voyage AI)
 - Multi-user collaboration
 - Advanced conflict resolution
 - Export capabilities (reports, summaries)
 - Real-time notifications
 - Cloud deployment options
-- Executable packaging for Windows/Mac/Linux
+- Mac/Linux executable packaging
 
 ## Troubleshooting
 

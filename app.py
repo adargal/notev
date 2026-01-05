@@ -17,6 +17,10 @@ from notev_backend.modules.workspace_manager import WorkspaceManager
 from notev_backend.modules.global_docs_manager import GlobalDocsManager
 from notev_backend.modules.chat_agent import ChatAgent
 
+# Module instances (initialized after config is loaded)
+vector_store = None
+chat_agent = None
+
 
 def secure_filename_unicode(filename):
     """
@@ -56,39 +60,57 @@ app = Flask(__name__,
 app.config.from_object(Config)
 CORS(app)
 
-# Validate configuration
-try:
-    Config.validate()
-except ValueError as e:
-    print(f"Configuration error: {e}")
-    print("Please set ANTHROPIC_API_KEY in .env file")
-    exit(1)
-
-# Initialize storage
+# Initialize storage first
 Config.init_storage()
 
-# Initialize modules
+# Load API keys from config file or environment
+Config.load_api_keys()
+
+# Check if configured (don't exit if not - allow settings UI to configure)
+if not Config.is_configured():
+    print("\n" + "="*60)
+    print("WARNING: API keys not configured!")
+    print("Please open the app and configure your API keys in Settings.")
+    print("="*60 + "\n")
+
+# Initialize modules that don't require API keys
 document_processor = DocumentProcessor(
     chunk_size=Config.CHUNK_SIZE,
     chunk_overlap=Config.CHUNK_OVERLAP
-)
-
-vector_store = VectorStore(
-    api_key=Config.ANTHROPIC_API_KEY,
-    embedding_model=Config.EMBEDDING_MODEL,
-    voyage_api_key=Config.VOYAGE_API_KEY
 )
 
 workspace_manager = WorkspaceManager(Config.WORKSPACES_PATH)
 
 global_docs_manager = GlobalDocsManager(Config.GLOBAL_DOCS_PATH)
 
-chat_agent = ChatAgent(
-    api_key=Config.ANTHROPIC_API_KEY,
-    model=Config.CLAUDE_MODEL,
-    max_tokens=Config.MAX_TOKENS,
-    temperature=Config.TEMPERATURE
-)
+
+def initialize_ai_modules():
+    """Initialize or reinitialize AI modules with current API keys."""
+    global vector_store, chat_agent
+
+    if not Config.ANTHROPIC_API_KEY:
+        vector_store = None
+        chat_agent = None
+        return False
+
+    vector_store = VectorStore(
+        api_key=Config.ANTHROPIC_API_KEY,
+        embedding_model=Config.EMBEDDING_MODEL,
+        voyage_api_key=Config.VOYAGE_API_KEY
+    )
+
+    chat_agent = ChatAgent(
+        api_key=Config.ANTHROPIC_API_KEY,
+        model=Config.CLAUDE_MODEL,
+        max_tokens=Config.MAX_TOKENS,
+        temperature=Config.TEMPERATURE
+    )
+
+    return True
+
+
+# Initialize AI modules if configured
+initialize_ai_modules()
 
 
 # ============================================================================
@@ -100,6 +122,14 @@ def reload_all_documents_to_vector_store():
     Reload all existing documents into the vector store on app startup.
     This is necessary because the vector store is in-memory only.
     """
+    global vector_store
+
+    if vector_store is None:
+        print("\n" + "="*60)
+        print("SKIPPING DOCUMENT RELOAD - API keys not configured")
+        print("="*60 + "\n")
+        return
+
     print("\n" + "="*60)
     print("RELOADING DOCUMENTS INTO VECTOR STORE")
     print("="*60)
@@ -496,6 +526,12 @@ def remove_global_document(doc_id):
 @app.route('/api/workspaces/<workspace_id>/chat', methods=['POST'])
 def chat(workspace_id):
     """Send a chat message and get response."""
+    # Check if AI modules are configured
+    if not Config.is_configured() or vector_store is None or chat_agent is None:
+        return jsonify({
+            'error': 'API keys not configured. Please configure your API keys in Settings.'
+        }), 503
+
     data = request.json
 
     if not data or 'message' not in data:
@@ -583,11 +619,96 @@ def clear_conversation(workspace_id):
 def system_status():
     """Get system status and statistics."""
     return jsonify({
-        'status': 'operational',
-        'vector_store': vector_store.get_stats(),
+        'status': 'operational' if Config.is_configured() else 'not_configured',
+        'configured': Config.is_configured(),
+        'vector_store': vector_store.get_stats() if vector_store else {'total_chunks': 0, 'total_documents': 0},
         'workspaces_count': len(workspace_manager.list_workspaces()),
         'global_docs_count': len(global_docs_manager.list_documents())
     })
+
+
+# ============================================================================
+# Settings API
+# ============================================================================
+
+@app.route('/api/settings', methods=['GET'])
+def get_settings():
+    """Get current settings status (without revealing API keys)."""
+    return jsonify({
+        'configured': Config.is_configured(),
+        'anthropic_configured': bool(Config.ANTHROPIC_API_KEY),
+        'voyage_configured': bool(Config.VOYAGE_API_KEY)
+    })
+
+
+@app.route('/api/settings', methods=['POST'])
+def save_settings():
+    """Save API keys and reinitialize modules."""
+    data = request.json
+
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    anthropic_key = data.get('anthropic_api_key')
+    voyage_key = data.get('voyage_api_key')
+
+    # Validate Anthropic key is provided (required)
+    if anthropic_key is not None and not anthropic_key.strip():
+        # Allow empty string to clear the key, but warn
+        pass
+
+    # Save keys to config file
+    Config.save_api_keys(
+        anthropic_key=anthropic_key if anthropic_key is not None else None,
+        voyage_key=voyage_key if voyage_key is not None else None
+    )
+
+    # Reinitialize AI modules with new keys
+    success = initialize_ai_modules()
+
+    if success:
+        # Reload documents into vector store
+        reload_all_documents_to_vector_store()
+
+    return jsonify({
+        'success': True,
+        'configured': Config.is_configured(),
+        'anthropic_configured': bool(Config.ANTHROPIC_API_KEY),
+        'voyage_configured': bool(Config.VOYAGE_API_KEY),
+        'message': 'Settings saved successfully' if success else 'Settings saved but API key may be invalid'
+    })
+
+
+@app.route('/api/settings/validate', methods=['POST'])
+def validate_api_key():
+    """Validate an API key without saving it."""
+    data = request.json
+
+    if not data or 'anthropic_api_key' not in data:
+        return jsonify({'error': 'API key is required'}), 400
+
+    api_key = data['anthropic_api_key']
+
+    if not api_key or not api_key.strip():
+        return jsonify({'valid': False, 'error': 'API key cannot be empty'}), 400
+
+    # Try to validate the key by making a simple API call
+    try:
+        from anthropic import Anthropic
+        client = Anthropic(api_key=api_key)
+        # Make a minimal API call to validate the key
+        response = client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=10,
+            messages=[{"role": "user", "content": "Hi"}]
+        )
+        return jsonify({'valid': True, 'message': 'API key is valid'})
+    except Exception as e:
+        error_msg = str(e)
+        if 'authentication' in error_msg.lower() or 'api key' in error_msg.lower():
+            return jsonify({'valid': False, 'error': 'Invalid API key'}), 400
+        else:
+            return jsonify({'valid': False, 'error': f'Validation failed: {error_msg}'}), 400
 
 
 # ============================================================================
