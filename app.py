@@ -94,9 +94,9 @@ def initialize_ai_modules():
         return False
 
     vector_store = VectorStore(
-        api_key=Config.ANTHROPIC_API_KEY,
-        embedding_model=Config.EMBEDDING_MODEL,
-        voyage_api_key=Config.VOYAGE_API_KEY
+        local_model=Config.LOCAL_EMBEDDING_MODEL,
+        model_cache_dir=Config.get_model_cache_dir(),
+        search_mode=Config.SEARCH_MODE
     )
 
     chat_agent = ChatAgent(
@@ -636,8 +636,7 @@ def get_settings():
     """Get current settings status (without revealing API keys)."""
     return jsonify({
         'configured': Config.is_configured(),
-        'anthropic_configured': bool(Config.ANTHROPIC_API_KEY),
-        'voyage_configured': bool(Config.VOYAGE_API_KEY)
+        'anthropic_configured': bool(Config.ANTHROPIC_API_KEY)
     })
 
 
@@ -650,7 +649,6 @@ def save_settings():
         return jsonify({'error': 'No data provided'}), 400
 
     anthropic_key = data.get('anthropic_api_key')
-    voyage_key = data.get('voyage_api_key')
 
     # Validate Anthropic key is provided (required)
     if anthropic_key is not None and not anthropic_key.strip():
@@ -659,8 +657,7 @@ def save_settings():
 
     # Save keys to config file
     Config.save_api_keys(
-        anthropic_key=anthropic_key if anthropic_key is not None else None,
-        voyage_key=voyage_key if voyage_key is not None else None
+        anthropic_key=anthropic_key if anthropic_key is not None else None
     )
 
     # Reinitialize AI modules with new keys
@@ -674,7 +671,6 @@ def save_settings():
         'success': True,
         'configured': Config.is_configured(),
         'anthropic_configured': bool(Config.ANTHROPIC_API_KEY),
-        'voyage_configured': bool(Config.VOYAGE_API_KEY),
         'message': 'Settings saved successfully' if success else 'Settings saved but API key may be invalid'
     })
 

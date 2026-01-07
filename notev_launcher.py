@@ -27,10 +27,23 @@ import docx
 import pptx
 import pypdf
 import numpy
+
+# Local embedding imports (for PyInstaller)
 try:
-    import voyageai
+    import sentence_transformers
+    import transformers
+    import torch
+    import tokenizers
+    import huggingface_hub
+    import safetensors
 except ImportError:
-    pass  # Optional dependency
+    pass  # Will be handled at runtime
+
+# BM25 search
+try:
+    import rank_bm25
+except ImportError:
+    pass
 
 # Ensure we're running from the correct directory
 if getattr(sys, 'frozen', False):
@@ -73,11 +86,52 @@ def open_browser(port, delay=1.5):
     webbrowser.open(url)
 
 
+def ensure_embedding_model():
+    """
+    Pre-download embedding model for local embeddings.
+    This ensures the model is available before the app starts.
+    """
+    # Import config to check settings
+    from config import Config
+
+    print(f"Checking local embedding model: {Config.LOCAL_EMBEDDING_MODEL}")
+
+    try:
+        from sentence_transformers import SentenceTransformer
+
+        cache_dir = Config.get_model_cache_dir()
+        if cache_dir:
+            os.makedirs(cache_dir, exist_ok=True)
+            os.environ['TRANSFORMERS_CACHE'] = cache_dir
+            os.environ['HF_HOME'] = cache_dir
+            os.environ['SENTENCE_TRANSFORMERS_HOME'] = cache_dir
+
+        # This will download if not present, or load from cache if available
+        print("Loading model (this may take a moment on first run)...")
+        model = SentenceTransformer(
+            Config.LOCAL_EMBEDDING_MODEL,
+            cache_folder=cache_dir,
+            device='cpu'
+        )
+        print(f"Embedding model ready: {Config.LOCAL_EMBEDDING_MODEL}")
+
+    except ImportError:
+        print("WARNING: sentence-transformers not installed")
+        print("  Falling back to simple embeddings")
+    except Exception as e:
+        print(f"WARNING: Could not load embedding model: {e}")
+        print("  Will attempt to load when needed")
+
+
 def main():
     """Main entry point for the launcher."""
     print("=" * 60)
     print("  NOTEV - AI-Powered Operations Decision Support")
     print("=" * 60)
+    print()
+
+    # Ensure embedding model is available
+    ensure_embedding_model()
     print()
 
     # Find a free port

@@ -672,7 +672,7 @@ function addThinkingIndicator() {
 
     const contentDiv = document.createElement('div');
     contentDiv.className = 'message-content thinking-content';
-    contentDiv.innerHTML = '<div class="thinking-dots"><span>.</span><span>.</span><span>.</span></div><span class="thinking-text">Analyzing documents and formulating response...</span>';
+    contentDiv.innerHTML = '<div class="thinking-spinner"></div><span class="thinking-text">Analyzing documents and formulating response...</span>';
 
     thinkingDiv.appendChild(headerDiv);
     thinkingDiv.appendChild(contentDiv);
@@ -751,7 +751,6 @@ function closeSettingsModal() {
     document.getElementById('settings-modal').style.display = 'none';
     // Clear status messages
     document.getElementById('anthropic-status').className = 'api-status';
-    document.getElementById('voyage-status').className = 'api-status';
 }
 
 async function loadSettingsStatus() {
@@ -760,20 +759,12 @@ async function loadSettingsStatus() {
         const data = await response.json();
 
         const anthropicStatus = document.getElementById('anthropic-status');
-        const voyageStatus = document.getElementById('voyage-status');
 
         if (data.anthropic_configured) {
             anthropicStatus.textContent = 'API key is configured';
             anthropicStatus.className = 'api-status configured';
         } else {
             anthropicStatus.className = 'api-status';
-        }
-
-        if (data.voyage_configured) {
-            voyageStatus.textContent = 'API key is configured';
-            voyageStatus.className = 'api-status configured';
-        } else {
-            voyageStatus.className = 'api-status';
         }
 
     } catch (error) {
@@ -831,23 +822,19 @@ async function handleSaveSettings(e) {
     e.preventDefault();
 
     const anthropicKey = document.getElementById('anthropic-api-key').value.trim();
-    const voyageKey = document.getElementById('voyage-api-key').value.trim();
     const anthropicStatus = document.getElementById('anthropic-status');
-
-    // Build settings object - only include keys that have values
-    const settings = {};
-    if (anthropicKey) {
-        settings.anthropic_api_key = anthropicKey;
-    }
-    if (voyageKey) {
-        settings.voyage_api_key = voyageKey;
-    }
 
     // Check if at least anthropic key is being set (if not already configured)
     if (!anthropicKey && !isConfigured) {
         anthropicStatus.textContent = 'Anthropic API key is required';
         anthropicStatus.className = 'api-status error';
         return;
+    }
+
+    // Build settings object - only include key if it has a value
+    const settings = {};
+    if (anthropicKey) {
+        settings.anthropic_api_key = anthropicKey;
     }
 
     try {
@@ -865,9 +852,8 @@ async function handleSaveSettings(e) {
             alert('Settings saved successfully!');
             isConfigured = data.configured;
 
-            // Clear input fields
+            // Clear input field
             document.getElementById('anthropic-api-key').value = '';
-            document.getElementById('voyage-api-key').value = '';
 
             // Update banner visibility
             const configBanner = document.getElementById('config-banner');
@@ -892,7 +878,7 @@ async function handleSaveSettings(e) {
 }
 
 async function handleClearKeys() {
-    if (!confirm('Are you sure you want to clear all API keys?\n\nThis will disable the chat functionality until new keys are configured.')) {
+    if (!confirm('Are you sure you want to clear the API key?\n\nThis will disable the chat functionality until a new key is configured.')) {
         return;
     }
 
@@ -905,15 +891,14 @@ async function handleClearKeys() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                anthropic_api_key: '',
-                voyage_api_key: ''
+                anthropic_api_key: ''
             })
         });
 
         const data = await response.json();
 
         if (data.success) {
-            alert('API keys cleared successfully.');
+            alert('API key cleared successfully.');
             isConfigured = false;
 
             // Show config banner
@@ -924,13 +909,13 @@ async function handleClearKeys() {
             // Reload settings status
             loadSettingsStatus();
         } else {
-            anthropicStatus.textContent = data.error || 'Failed to clear keys';
+            anthropicStatus.textContent = data.error || 'Failed to clear key';
             anthropicStatus.className = 'api-status error';
         }
 
     } catch (error) {
-        console.error('Error clearing keys:', error);
-        anthropicStatus.textContent = 'Error clearing keys';
+        console.error('Error clearing key:', error);
+        anthropicStatus.textContent = 'Error clearing key';
         anthropicStatus.className = 'api-status error';
     }
 }

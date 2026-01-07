@@ -11,7 +11,7 @@ Notev is an AI-powered assistant designed to support Operations Centers in real-
 3. Extract the zip file
 4. Run `Notev.exe`
 5. Your browser will open automatically
-6. Enter your API keys in Settings when prompted
+6. Enter your Anthropic API key in Settings when prompted
 
 See [DISTRIBUTION_README.txt](DISTRIBUTION_README.txt) for detailed instructions.
 
@@ -44,7 +44,6 @@ See [DISTRIBUTION_README.txt](DISTRIBUTION_README.txt) for detailed instructions
 
 - Python 3.11 (recommended) - Python 3.14 has compatibility issues with some dependencies
 - Anthropic API key (get one at https://console.anthropic.com/)
-- Voyage AI API key (get one at https://www.voyageai.com/) - **Optional but recommended for better search quality**
 
 ### Setup Steps
 
@@ -78,13 +77,10 @@ See [DISTRIBUTION_README.txt](DISTRIBUTION_README.txt) for detailed instructions
    cp .env.example .env
    ```
 
-   Edit `.env` and add your API keys:
+   Edit `.env` and add your API key:
    ```
    ANTHROPIC_API_KEY=your_actual_api_key_here
-   VOYAGE_API_KEY=your_voyage_api_key_here
    ```
-
-   **Note on Voyage AI**: The Voyage API key is optional. Without it, the system will fall back to simple hash-based embeddings which provide basic keyword matching but not true semantic search. For production use with multiple documents, the Voyage AI embeddings are highly recommended for better search quality.
 
 6. **Run the application**:
    ```bash
@@ -206,12 +202,12 @@ notev/
 
 ## Known Limitations
 
-1. **Embeddings**: Without a Voyage AI API key, uses simple hash-based embeddings (keyword matching). For best results with multiple documents, add a Voyage AI API key to your `.env` file.
-2. **Single User**: No multi-user support or authentication
-3. **No Pagination**: Large document sets may cause performance issues
-4. **Local Only**: No cloud storage or deployment
-5. **Text Only**: Images and diagrams in documents are not processed
-6. **In-Memory Vector Store**: Vector embeddings are stored in memory and reloaded on each restart
+1. **Single User**: No multi-user support or authentication
+2. **No Pagination**: Large document sets may cause performance issues
+3. **Local Only**: No cloud storage or deployment
+4. **Text Only**: Images and diagrams in documents are not processed
+5. **In-Memory Vector Store**: Vector embeddings are stored in memory and reloaded on each restart
+6. **First Run**: The embedding model (~130MB) will be downloaded on first use
 
 ## Future Enhancements (Beyond Phase 1)
 
@@ -233,11 +229,10 @@ notev/
 - Ensure you've activated the virtual environment
 - Run `pip install -r requirements.txt`
 
-**Documents not being retrieved correctly** or **Large documents interfering with search**
+**Documents not being retrieved correctly**
 - Check that documents have been uploaded successfully
 - Verify the document format is supported (.txt, .docx, .pptx, .pdf)
-- **Recommended**: Add a Voyage AI API key to `.env` for semantic search instead of keyword matching
-- Without Voyage AI, the system uses simple hash-based embeddings which may not work well with multiple or large documents
+- Ensure the embedding model has been downloaded (check console output on first run)
 - Try uploading smaller documents first to test
 
 **Port already in use**
