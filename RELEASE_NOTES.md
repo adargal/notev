@@ -15,7 +15,8 @@ Notev is an AI-powered assistant designed to support Operations Centers in real-
 
 **Technical Highlights**
 - Powered by Claude AI (Anthropic)
-- Optional Voyage AI integration for enhanced semantic search
+- Free local embeddings with multilingual support (Hebrew + English)
+- Hybrid search combining keyword (BM25) and semantic search
 - Local data storage - your documents stay on your machine
 - In-app API key configuration
 
@@ -36,7 +37,6 @@ Notev is an AI-powered assistant designed to support Operations Centers in real-
 ### API Keys Required
 
 - **Anthropic API Key** (required): Get one at https://console.anthropic.com/
-- **Voyage AI API Key** (optional): Get one at https://www.voyageai.com/ for improved document search
 
 ### Known Limitations
 

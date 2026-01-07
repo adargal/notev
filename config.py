@@ -22,7 +22,6 @@ class Config:
 
     # API Configuration - loaded from config file or environment
     ANTHROPIC_API_KEY = None
-    VOYAGE_API_KEY = None
 
     # Flask Configuration
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -35,9 +34,27 @@ class Config:
 
     # Claude Configuration
     CLAUDE_MODEL = "claude-sonnet-4-5-20250929"
-    EMBEDDING_MODEL = "voyage-3"  # Anthropic's embedding model
     MAX_TOKENS = 4096
     TEMPERATURE = 0.7
+
+    # Embedding Configuration (local only)
+    LOCAL_EMBEDDING_MODEL = os.getenv('LOCAL_EMBEDDING_MODEL', 'intfloat/multilingual-e5-small')
+
+    # Search Configuration
+    SEARCH_MODE = os.getenv('SEARCH_MODE', 'hybrid')  # "hybrid", "vector", or "bm25"
+
+    @classmethod
+    def get_model_cache_dir(cls):
+        """Get model cache directory based on execution context."""
+        import sys
+        if getattr(sys, 'frozen', False):
+            # Running as EXE - use app data directory
+            if os.name == 'nt':  # Windows
+                base = os.environ.get('LOCALAPPDATA', os.path.expanduser('~'))
+                return os.path.join(base, 'Notev', 'models')
+            else:  # Linux/Mac
+                return os.path.join(os.path.expanduser('~'), '.notev', 'models')
+        return None  # Use default HuggingFace cache when running as script
 
     @classmethod
     def init_storage(cls):
@@ -55,18 +72,15 @@ class Config:
                 with open(cls.CONFIG_FILE, 'r') as f:
                     config_data = json.load(f)
                     cls.ANTHROPIC_API_KEY = config_data.get('anthropic_api_key') or None
-                    cls.VOYAGE_API_KEY = config_data.get('voyage_api_key') or None
             except (json.JSONDecodeError, IOError):
                 pass
 
         # Fallback to environment variables if not set from config file
         if not cls.ANTHROPIC_API_KEY:
             cls.ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
-        if not cls.VOYAGE_API_KEY:
-            cls.VOYAGE_API_KEY = os.getenv('VOYAGE_API_KEY')
 
     @classmethod
-    def save_api_keys(cls, anthropic_key=None, voyage_key=None):
+    def save_api_keys(cls, anthropic_key=None):
         """Save API keys to config file."""
         # Ensure storage directory exists
         cls.STORAGE_PATH.mkdir(parents=True, exist_ok=True)
@@ -84,9 +98,6 @@ class Config:
         if anthropic_key is not None:
             config_data['anthropic_api_key'] = anthropic_key
             cls.ANTHROPIC_API_KEY = anthropic_key or None
-        if voyage_key is not None:
-            config_data['voyage_api_key'] = voyage_key
-            cls.VOYAGE_API_KEY = voyage_key or None
 
         # Save to file
         with open(cls.CONFIG_FILE, 'w') as f:
@@ -96,8 +107,7 @@ class Config:
     def get_api_keys_status(cls):
         """Get status of API keys (configured or not, without revealing the keys)."""
         return {
-            'anthropic_configured': bool(cls.ANTHROPIC_API_KEY),
-            'voyage_configured': bool(cls.VOYAGE_API_KEY)
+            'anthropic_configured': bool(cls.ANTHROPIC_API_KEY)
         }
 
     @classmethod

@@ -423,35 +423,36 @@ body {
     gap: 1rem;
 }
 
-.thinking-dots {
-    display: flex;
-    gap: 0.3rem;
-}
-
-.thinking-dots span {
-    animation: thinking-blink 1.4s infinite;
-    font-size: 1.5rem;
-    color: #f39c12;
-}
-
-.thinking-dots span:nth-child(2) {
-    animation-delay: 0.2s;
-}
-
-.thinking-dots span:nth-child(3) {
-    animation-delay: 0.4s;
+.thinking-spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid #f5d89a;
+    border-top: 3px solid #f39c12;
+    border-radius: 50%;
+    animation: thinking-spin 0.8s linear infinite;
+    flex-shrink: 0;
 }
 
 .thinking-text {
     color: #7f8c8d;
-    font-style: italic;
+    font-weight: 500;
+    animation: thinking-pulse 1.5s ease-in-out infinite;
 }
 
-@keyframes thinking-blink {
-    0%, 60%, 100% {
-        opacity: 0.3;
+@keyframes thinking-spin {
+    0% {
+        transform: rotate(0deg);
     }
-    30% {
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes thinking-pulse {
+    0%, 100% {
+        opacity: 0.6;
+    }
+    50% {
         opacity: 1;
     }
 }

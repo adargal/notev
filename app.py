@@ -2,8 +2,9 @@
 Notev Flask Application
 Main application file with REST API endpoints for workspace and document management.
 """
-from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask import Flask, request, jsonify, render_template, send_from_directory, Response, stream_with_context
 from flask_cors import CORS
+import json
 from werkzeug.utils import secure_filename
 import os
 import re
@@ -94,9 +95,9 @@ def initialize_ai_modules():
         return False
 
     vector_store = VectorStore(
-        api_key=Config.ANTHROPIC_API_KEY,
-        embedding_model=Config.EMBEDDING_MODEL,
-        voyage_api_key=Config.VOYAGE_API_KEY
+        local_model=Config.LOCAL_EMBEDDING_MODEL,
+        model_cache_dir=Config.get_model_cache_dir(),
+        search_mode=Config.SEARCH_MODE
     )
 
     chat_agent = ChatAgent(
@@ -591,6 +592,87 @@ def chat(workspace_id):
     })
 
 
+@app.route('/api/workspaces/<workspace_id>/chat/stream', methods=['POST'])
+def chat_stream(workspace_id):
+    """Send a chat message and stream the response using Server-Sent Events."""
+    # Check if AI modules are configured
+    if not Config.is_configured() or vector_store is None or chat_agent is None:
+        return jsonify({
+            'error': 'API keys not configured. Please configure your API keys in Settings.'
+        }), 503
+
+    data = request.json
+
+    if not data or 'message' not in data:
+        return jsonify({'error': 'Message is required'}), 400
+
+    message = data['message']
+    top_k = data.get('top_k', 5)
+
+    # Get workspace to ensure it exists
+    workspace = workspace_manager.get_workspace(workspace_id)
+    if not workspace:
+        return jsonify({'error': 'Workspace not found'}), 404
+
+    # Get workspace documents IDs for filtering
+    workspace_docs = workspace_manager.get_workspace_documents(workspace_id)
+    workspace_doc_ids = [f"workspace_{workspace_id}_{doc['id']}" for doc in workspace_docs]
+
+    # Get global documents IDs
+    global_docs = global_docs_manager.list_documents()
+    global_doc_ids = [f"global_{doc['id']}" for doc in global_docs]
+
+    # Combine for search
+    all_doc_ids = workspace_doc_ids + global_doc_ids
+
+    # Retrieve relevant documents (done before streaming starts)
+    retrieved_docs = vector_store.search(message, top_k=top_k, filter_doc_ids=all_doc_ids)
+
+    # Get conversation history
+    conversation_history = workspace_manager.get_conversation_history(workspace_id, limit=10)
+
+    def generate():
+        """Generator function for SSE streaming."""
+        full_response = ""
+        try:
+            for chunk in chat_agent.generate_response_stream(message, conversation_history, retrieved_docs):
+                full_response += chunk
+                # Yield SSE formatted data with explicit newlines for flushing
+                yield f"data: {json.dumps({'text': chunk})}\n\n"
+
+            # Save conversation turns after streaming completes
+            workspace_manager.add_conversation_turn(
+                workspace_id,
+                'user',
+                message,
+                metadata={'retrieved_docs_count': len(retrieved_docs)}
+            )
+
+            workspace_manager.add_conversation_turn(
+                workspace_id,
+                'assistant',
+                full_response,
+                metadata={}
+            )
+
+            # Send done signal
+            yield f"data: {json.dumps({'done': True})}\n\n"
+
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+    response = Response(
+        stream_with_context(generate()),
+        mimetype='text/event-stream',
+    )
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    response.headers['X-Accel-Buffering'] = 'no'
+    response.headers['Connection'] = 'keep-alive'
+    return response
+
+
 @app.route('/api/workspaces/<workspace_id>/conversation', methods=['GET'])
 def get_conversation(workspace_id):
     """Get conversation history for a workspace."""
@@ -636,8 +718,7 @@ def get_settings():
     """Get current settings status (without revealing API keys)."""
     return jsonify({
         'configured': Config.is_configured(),
-        'anthropic_configured': bool(Config.ANTHROPIC_API_KEY),
-        'voyage_configured': bool(Config.VOYAGE_API_KEY)
+        'anthropic_configured': bool(Config.ANTHROPIC_API_KEY)
     })
 
 
@@ -650,7 +731,6 @@ def save_settings():
         return jsonify({'error': 'No data provided'}), 400
 
     anthropic_key = data.get('anthropic_api_key')
-    voyage_key = data.get('voyage_api_key')
 
     # Validate Anthropic key is provided (required)
     if anthropic_key is not None and not anthropic_key.strip():
@@ -659,8 +739,7 @@ def save_settings():
 
     # Save keys to config file
     Config.save_api_keys(
-        anthropic_key=anthropic_key if anthropic_key is not None else None,
-        voyage_key=voyage_key if voyage_key is not None else None
+        anthropic_key=anthropic_key if anthropic_key is not None else None
     )
 
     # Reinitialize AI modules with new keys
@@ -674,7 +753,6 @@ def save_settings():
         'success': True,
         'configured': Config.is_configured(),
         'anthropic_configured': bool(Config.ANTHROPIC_API_KEY),
-        'voyage_configured': bool(Config.VOYAGE_API_KEY),
         'message': 'Settings saved successfully' if success else 'Settings saved but API key may be invalid'
     })
 
@@ -732,8 +810,10 @@ def internal_error(error):
 # ============================================================================
 
 if __name__ == '__main__':
+    # threaded=True is important for SSE streaming to work properly
     app.run(
         host='0.0.0.0',
         port=5000,
-        debug=Config.DEBUG
+        debug=Config.DEBUG,
+        threaded=True
     )

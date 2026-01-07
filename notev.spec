@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
 PyInstaller spec file for Notev
-Creates a standalone Windows executable.
+Creates a standalone Windows executable with local embeddings support.
 """
 
 import os
@@ -17,28 +17,63 @@ datas = [
     ('config.py', '.'),
 ]
 
+# Collect data files for sentence-transformers and transformers
+try:
+    datas += collect_data_files('sentence_transformers')
+except Exception:
+    pass
+
+try:
+    datas += collect_data_files('transformers')
+except Exception:
+    pass
+
 # Hidden imports that PyInstaller might miss
 hiddenimports = [
+    # Web framework
     'flask',
     'flask_cors',
-    'anthropic',
-    'voyageai',
-    'httpx',
-    'numpy',
-    'docx',
-    'pptx',
-    'pypdf',
     'werkzeug',
     'jinja2',
     'markupsafe',
+    'click',
+    'itsdangerous',
+    'blinker',
+
+    # AI/API
+    'anthropic',
+    'httpx',
+
+    # Document processing
+    'docx',
+    'pptx',
+    'pypdf',
+
+    # Data processing
+    'numpy',
     'dotenv',
     'json',
     'pathlib',
-    # Add submodules
+
+    # Local embeddings
+    'sentence_transformers',
+    'transformers',
+    'torch',
+    'tokenizers',
+    'huggingface_hub',
+    'safetensors',
+    'tqdm',
+    'regex',
+    'requests',
+    'filelock',
+
+    # BM25 search
+    'rank_bm25',
+
+    # Submodules
     'anthropic._client',
     'anthropic.resources',
     'anthropic.types',
-    'voyageai.client',
     'httpx._transports',
     'httpx._transports.default',
     'engineio.async_drivers.threading',
@@ -46,12 +81,27 @@ hiddenimports = [
 
 # Collect submodules for complex packages
 hiddenimports += collect_submodules('anthropic')
-hiddenimports += collect_submodules('voyageai')
 hiddenimports += collect_submodules('httpx')
 hiddenimports += collect_submodules('flask')
 hiddenimports += collect_submodules('docx')
 hiddenimports += collect_submodules('pptx')
 hiddenimports += collect_submodules('pypdf')
+
+# Collect sentence-transformers and transformers submodules
+try:
+    hiddenimports += collect_submodules('sentence_transformers')
+except Exception:
+    pass
+
+try:
+    hiddenimports += collect_submodules('transformers')
+except Exception:
+    pass
+
+try:
+    hiddenimports += collect_submodules('tokenizers')
+except Exception:
+    pass
 
 a = Analysis(
     ['notev_launcher.py'],
@@ -63,13 +113,26 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
+        # Testing
         'pytest',
         'pytest_cov',
+
+        # Server (not needed for EXE)
         'gunicorn',
+
+        # GUI (not used)
         'tkinter',
+
+        # Heavy scientific packages (not needed)
         'matplotlib',
         'scipy',
         'pandas',
+
+        # CUDA/GPU (force CPU only for smaller size)
+        'torch.cuda',
+        'torch.distributed',
+        'torch.testing',
+        'torch.utils.tensorboard',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
