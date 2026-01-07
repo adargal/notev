@@ -532,7 +532,7 @@ async function sendMessage() {
     const thinkingId = addThinkingIndicator();
 
     try {
-        const response = await fetch(`${API_BASE}/workspaces/${currentWorkspace.id}/chat`, {
+        const response = await fetch(`${API_BASE}/workspaces/${currentWorkspace.id}/chat/stream`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -542,13 +542,51 @@ async function sendMessage() {
 
         if (!response.ok) throw new Error('Failed to send message');
 
-        const data = await response.json();
-
-        // Remove thinking indicator
+        // Remove thinking indicator and create empty assistant message
         removeThinkingIndicator(thinkingId);
+        const messageDiv = appendMessage('assistant', '');
+        const contentDiv = messageDiv.querySelector('.message-content');
 
-        // Add assistant response to UI
-        appendMessage('assistant', data.response);
+        // Stream the response
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let fullText = '';
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+
+            // Parse SSE format: "data: {...}\n\n"
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+                        if (data.text) {
+                            fullText += data.text;
+                            contentDiv.innerHTML = formatMessageContent(fullText);
+                            // Update RTL direction as text comes in
+                            if (detectRTL(fullText)) {
+                                contentDiv.dir = 'rtl';
+                                contentDiv.style.textAlign = 'right';
+                            }
+                            scrollToBottom();
+                        }
+                        if (data.error) {
+                            console.error('Stream error:', data.error);
+                            contentDiv.innerHTML = formatMessageContent(`Error: ${data.error}`);
+                        }
+                    } catch (e) {
+                        // Ignore JSON parse errors for incomplete data
+                    }
+                }
+            }
+        }
 
         scrollToBottom();
 
@@ -651,6 +689,9 @@ function appendMessage(role, content, timestamp) {
     messageDiv.appendChild(metadataDiv);
 
     messagesDiv.appendChild(messageDiv);
+
+    // Return the message div for streaming updates
+    return messageDiv;
 }
 
 function scrollToBottom() {

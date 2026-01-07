@@ -150,11 +150,13 @@ def main():
     print()
 
     # Run Flask app (blocking)
+    # threaded=True is important for SSE streaming to work properly
     app.run(
         host='127.0.0.1',
         port=port,
         debug=False,
-        use_reloader=False
+        use_reloader=False,
+        threaded=True
     )
 
 

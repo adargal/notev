@@ -2,7 +2,7 @@
 Chat agent module for conversational interaction with RAG (Retrieval-Augmented Generation).
 Integrates Claude API with document retrieval to provide grounded, actionable guidance.
 """
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Generator
 from anthropic import Anthropic
 
 
@@ -129,6 +129,77 @@ Please provide guidance based on the above documents and conversation context.""
                 'error': str(e),
                 'response': f"I encountered an error while processing your request: {str(e)}"
             }
+
+    def generate_response_stream(self, user_message: str, conversation_history: List[Dict[str, str]],
+                                  retrieved_docs: List[Dict[str, Any]]) -> Generator[str, None, None]:
+        """
+        Generate a streaming response using Claude with RAG.
+
+        Args:
+            user_message: Current user message
+            conversation_history: Previous conversation turns (list of {role, content} dicts)
+            retrieved_docs: Retrieved document chunks from vector search
+
+        Yields:
+            Text chunks as they are generated
+        """
+        # Build context from retrieved documents
+        context = self._build_document_context(retrieved_docs)
+
+        # Build messages list
+        messages = self._build_messages(conversation_history, user_message, context)
+
+        # Stream from Claude API
+        with self.client.messages.stream(
+            model=self.model,
+            max_tokens=self.max_tokens,
+            temperature=self.temperature,
+            system=self.system_prompt,
+            messages=messages
+        ) as stream:
+            for text in stream.text_stream:
+                yield text
+
+    def _build_messages(self, conversation_history: List[Dict[str, str]],
+                        user_message: str, context: str) -> List[Dict[str, str]]:
+        """
+        Build messages list for Claude API.
+
+        Args:
+            conversation_history: Previous conversation turns
+            user_message: Current user message
+            context: Document context string
+
+        Returns:
+            List of message dicts for the API
+        """
+        messages = []
+
+        # Add conversation history
+        for turn in conversation_history:
+            messages.append({
+                'role': turn['role'],
+                'content': turn['content']
+            })
+
+        # Add current message with context
+        if context:
+            current_message = f"""RETRIEVED DOCUMENTS:
+{context}
+
+USER QUESTION:
+{user_message}
+
+Please provide guidance based on the above documents and conversation context."""
+        else:
+            current_message = user_message
+
+        messages.append({
+            'role': 'user',
+            'content': current_message
+        })
+
+        return messages
 
     def _build_document_context(self, retrieved_docs: List[Dict[str, Any]]) -> str:
         """
